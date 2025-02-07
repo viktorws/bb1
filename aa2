@@ -697,13 +697,73 @@ void OpenOrder(string symbol, int type) // type: OP_BUY или OP_SELL
 
 
 
+void CreateOrderLabels()
+{
+   string currentSymbol = Symbol(); // Текущая валютная пара
+
+   for(int i = 0; i < OrdersTotal(); i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS) && OrderSymbol() == currentSymbol)
+      {
+         int ticket = OrderTicket();
+         double openPrice = OrderOpenPrice();
+         double profit = OrderProfit() + OrderSwap() + OrderCommission();
+         double lot = OrderLots();
+         int type = OrderType();
+         double currentPrice = (type == OP_BUY) ? MarketInfo(currentSymbol, MODE_ASK) : MarketInfo(currentSymbol, MODE_BID);
+
+         // Метка на уровне цены открытия ордера
+         string openPriceLabelName = "OpenPriceLabel_" + IntegerToString(ticket);
+         if(ObjectFind(openPriceLabelName) < 0)
+         {
+            ObjectCreate(0, openPriceLabelName, OBJ_TEXT, 0, TimeCurrent(), openPrice);
+            ObjectSetString(0, openPriceLabelName, OBJPROP_TEXT, StringFormat("%s | Lot: %.2f", (type == OP_BUY) ? "BUY" : "SELL", lot));
+            ObjectSetInteger(0, openPriceLabelName, OBJPROP_COLOR, clrWhite);
+            ObjectSetInteger(0, openPriceLabelName, OBJPROP_BACK, false);
+         }
+         else
+         {
+            ObjectMove(0, openPriceLabelName, 0, TimeCurrent(), openPrice);
+         }
+
+         // Метка на уровне текущей цены (прибыль/убыток)
+         string profitLabelName = "ProfitLabel_" + IntegerToString(ticket);
+         if(ObjectFind(profitLabelName) < 0)
+         {
+            ObjectCreate(0, profitLabelName, OBJ_TEXT, 0, TimeCurrent(), currentPrice);
+            ObjectSetString(0, profitLabelName, OBJPROP_TEXT, DoubleToString(profit, 2));
+            ObjectSetInteger(0, profitLabelName, OBJPROP_COLOR, (profit >= 0) ? clrLime : clrRed);
+            ObjectSetInteger(0, profitLabelName, OBJPROP_BACK, false);
+         }
+         else
+         {
+            ObjectMove(0, profitLabelName, 0, TimeCurrent(), currentPrice);
+            ObjectSetString(0, profitLabelName, OBJPROP_TEXT, DoubleToString(profit, 2));
+            ObjectSetInteger(0, profitLabelName, OBJPROP_COLOR, (profit >= 0) ? clrLime : clrRed);
+         }
+      }
+   }
+}
 
 
 
+void DeleteOrderLabels()
+{
+   string currentSymbol = Symbol(); // Текущая валютная пара
 
-
-
-
+   for(int i = ObjectsTotal() - 1; i >= 0; i--)
+   {
+      string name = ObjectName(i);
+      if(StringFind(name, "OpenPriceLabel_") == 0 || StringFind(name, "ProfitLabel_") == 0)
+      {
+         int ticket = (int)StringToInteger(StringSubstr(name, StringFind(name, "_") + 1));
+         if(!OrderSelect(ticket, SELECT_BY_TICKET) || OrderSymbol() != currentSymbol)
+         {
+            ObjectDelete(0, name);
+         }
+      }
+   }
+}
 
 
 
@@ -781,51 +841,81 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
          ChartSetSymbolPeriod(0, symbol, PERIOD_CURRENT); // Открываем график в текущем окне
          currentSymbol = symbol; // Обновляем текущий символ
          UpdateButtonColors(); // Обновляем цвета кнопок
-         ObjectSetInteger(0, sparam, OBJPROP_STATE, false); // Сбрасываем состояние кнопки
-      }
+         ObjectSetInteger(0, sparam, OBJPROP_STATE, false); } // Сбрасываем состояние кнопки
       
-      
-      
-      for(int i = 0; i < ArraySize(currencyPairs); i++)
-      {
-         string symbol = currencyPairs[i];
-         if(sparam == "SellButton_" + symbol)
-         {
-            OpenOrder(symbol, OP_SELL);
-         }
-         else if(sparam == "BuyButton_" + symbol)
-         {
-            OpenOrder(symbol, OP_BUY);
-         }
-         else if(sparam == "Minus0.1_" + symbol)
-         {
-            UpdateLot(symbol, -0.1);
-         }
-         else if(sparam == "Minus0.01_" + symbol)
-         {
-            UpdateLot(symbol, -0.01);
-         }
-         else if(sparam == "Plus0.01_" + symbol)
-         {
-            UpdateLot(symbol, 0.01);
-         }
-         else if(sparam == "Plus0.1_" + symbol)
-         {
-            UpdateLot(symbol, 0.1);
-         }
-      }
+      for(int i = 0; i < ArraySize(currencyPairs); i++){string symbol = currencyPairs[i];
+         if(sparam == "SellButton_" + symbol){OpenOrder(symbol, OP_SELL);}
+    else if(sparam == "BuyButton_" + symbol){ OpenOrder(symbol, OP_BUY);}  
             
-      
-   }
-   else if(id == CHARTEVENT_CHART_CHANGE)
-   {
+    else if(sparam == "Minus0.1_" + symbol) { UpdateLot(symbol, -0.1);  }  
+    else if(sparam == "Minus0.01_" + symbol) { UpdateLot(symbol, -0.01); }  
+         
+    else if(sparam == "Plus0.01_" + symbol) {  UpdateLot(symbol, 0.01); } 
+    else if(sparam == "Plus0.1_" + symbol) { UpdateLot(symbol, 0.1); } }  }  
+            
+   else if(id == CHARTEVENT_CHART_CHANGE) {
+  
       currentSymbol = Symbol(); // Обновляем текущий символ
       UpdateButtonColors(); // Обновляем цвета кнопок
-      UpdatePanel();
-   }
-   
-   
+      UpdatePanel();}
+      
+      
+          if(StringFind(sparam, "CloseButton_") == 0)
+      {
+         int ticket = (int)StringToInteger(StringSubstr(sparam, StringLen("CloseButton_")));
+         if(OrderSelect(ticket, SELECT_BY_TICKET))
+         {
+            if(OrderClose(OrderTicket(), OrderLots(), (OrderType() == OP_BUY) ? MarketInfo(OrderSymbol(), MODE_BID) : MarketInfo(OrderSymbol(), MODE_ASK), 3, clrRed))
+            {
+               Print("Ордер закрыт: ", ticket);
+            }
+            else
+            {
+               Print("Ошибка закрытия ордера: ", GetLastError());
+            }
+         }
+      }  
+      
+      
+      
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -909,27 +999,6 @@ void OnDeinit(const int reason)
 
 
 
-/*
-void OnTick()
-{
-   UpdateSpreads();
-   UpdateProfits();
-   UpdateBuyColumns();
-   UpdateSellColumns();
-
-   // Обновляем общую прибыль
-   double totalProfit = CalculateTotalProfit();
-   ObjectSetString(0, "TotalProfitValue", OBJPROP_TEXT, DoubleToString(totalProfit, 2));
-
-   // Изменение цвета текста в зависимости от прибыли
-   if(totalProfit == 0) // Если прибыль равна нулю
-      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrLavender);
-   else if(totalProfit > 0) // Если прибыль положительная
-      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrLime);
-   else // Если прибыль отрицательная
-      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrRed);
-}
-*/
 
 void OnTick()
 {
@@ -937,6 +1006,8 @@ void OnTick()
    UpdateProfits();
    UpdateBuyColumns();
    UpdateSellColumns();
+   DeleteOrderLabels(); // Удаляем метки для закрытых ордеров
+   CreateOrderLabels(); // Обновляем метки для открытых ордеров
 
    // Обновляем общую прибыль
    double totalProfit = CalculateTotalProfit();
