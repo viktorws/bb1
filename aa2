@@ -12,20 +12,43 @@
 #define PROFIT_SELL_PREFIX "ProfitSell_"
 
 // Параметры панели
-input int PANEL_WIDTH = 500; // Ширина панели (увеличена для новых столбцов)
-input int PANEL_HEIGHT = 400; // Высота панели
+input int PANEL_WIDTH = 1500; // Ширина панели (увеличена для новых столбцов)
+input int PANEL_HEIGHT = 1100; // Высота панели
 input int BOTTOM_MARGIN = 30; // Отступ снизу в пикселях
-input int TOP_MARGIN = 10; // Отступ сверху в пикселях
+input int TOP_MARGIN = 20; // Отступ сверху в пикселях
 input int SIDE_MARGIN = 10; // Отступ от края в пикселях
 input int PANEL_POSITION = 0; // 0 - Лево-Верх, 1 - Право-Верх, 2 - Лево-Низ, 3 - Право-Низ
 input color PANEL_BORDER_COLOR = clrBlack; // Цвет границы панели
-input int PANEL_BORDER_WIDTH = 1; // Толщина границы панели
+input int PANEL_BORDER_WIDTH = 0; // Толщина границы панели
 input color PANEL_BG_COLOR = C'20,20,20'; // Цвет фона панели
-input int PANEL_BG_TRANSPARENCY = 50; // Прозрачность фона (0-255)
+//input int PANEL_BG_TRANSPARENCY = 50; // Прозрачность фона (0-255)
+
+input double LOT_STEP = 0.01; // Шаг изменения лота
+input double MAX_LOT = 8.00; // Максимальный лот
+input double MIN_LOT = 0.01;  // Минимальный лот
+
+
+
+input int TRADES_COLUMN_WIDTH = 380; // Ширина столбца Trades
+input int TRADES_COLUMN_SPACING = 50; // Отступ между столбцом Sell и Trades
+input int LOT_BUTTON_WIDTH = 40; // Ширина кнопок изменения лота
+input int LOT_DISPLAY_WIDTH = 60; // Ширина поля отображения лота
+input int SELL_BUY_BUTTON_WIDTH = 60; // Ширина кнопок Sell и Buy
+input int SELL_BUY_BUTTON_HEIGHT = 25; // Высота кнопок Sell и Buy
+
+
+input color SELL_BUTTON_COLOR = clrRed; // Цвет кнопки Sell
+input color BUY_BUTTON_COLOR = clrGreen; // Цвет кнопки Buy
+input color SELL_BUTTON_BG_COLOR = C'10,10,10'; // Цвет фона кнопки Sell
+input color BUY_BUTTON_BG_COLOR = C'10,10,10'; // Цвет фона кнопки Buy
+input color LOT_BUTTON_COLOR = C'40,40,40'; // Цвет кнопок изменения лота
+
 
 // Параметры кнопок
 input int BUTTON_WIDTH = 120; // Ширина кнопки
 input int BUTTON_HEIGHT = 25; // Высота кнопки
+input int SPREAD_BUTTON_WIDTH = 50; // Ширина кнопки Spread
+input int PROFIT_BUTTON_WIDTH = 80; // Ширина кнопки Profit
 input int BUTTON_SPACING = 5; // Расстояние между кнопками
 input color BUTTON_BG_COLOR = C'40,40,40'; // Цвет фона кнопки
 input color BUTTON_TEXT_COLOR = clrLavender; // Цвет текста кнопки
@@ -33,7 +56,7 @@ input color BUTTON_BORDER_COLOR = clrBlack; // Цвет границы кноп�
 input int BUTTON_BORDER_WIDTH = 1; // Толщина границы кнопки
 
 // Параметры "статичных кнопок" для спредов и заголовков
-input int SPREAD_BUTTON_WIDTH = 60; // Ширина кнопки для спреда
+//input int SPREAD_BUTTON_WIDTH = 60; // Ширина кнопки для спреда
 input int SPREAD_BUTTON_HEIGHT = 25; // Высота кнопки для спреда
 input color SPREAD_BUTTON_BG_COLOR = C'10,10,10'; // Цвет фона кнопки для спреда
 input color SPREAD_BUTTON_TEXT_COLOR = clrLavender; // Цвет текста кнопки для спреда
@@ -42,10 +65,12 @@ input int COLUMN_SPACING = 10; // Отступ между столбцами
 input int HEADER_SPACING = 5; // Отступ заголовков от столбцов
 
 // Параметры для новых столбцов
-input int LOT_BUY_WIDTH = 60; // Ширина столбца Lot Buy
-input int PROFIT_BUY_WIDTH = 60; // Ширина столбца Profit Buy
-input int LOT_SELL_WIDTH = 60; // Ширина столбца Lot Sell
-input int PROFIT_SELL_WIDTH = 60; // Ширина столбца Profit Sell
+input int LOT_BUY_WIDTH = 50; // Ширина столбца Lot Buy
+input int PROFIT_BUY_WIDTH = 80; // Ширина столбца Profit Buy
+input int LOT_SELL_WIDTH = 50; // Ширина столбца Lot Sell
+input int PROFIT_SELL_WIDTH = 80; // Ширина столбца Profit Sell
+
+input int PROFIT_RIGHT_MARGIN = 20; // Отступ справа от столбца Profit
 
 // Параметры отступов внутри блока
 input int CONTENT_PADDING_LEFT = 10; // Отступ слева
@@ -55,8 +80,38 @@ input int CONTENT_PADDING_BOTTOM = 10; // Отступ снизу
 
 // Глобальные параметры шрифта
 input string GLOBAL_FONT = "Arial"; // Шрифт для всей панели
-input int GLOBAL_FONT_SIZE = 10; // Размер шрифта для всей панели
+input int GLOBAL_FONT_SIZE = 8; // Размер шрифта для всей панели
 
+double currentLot = 0.01; // Текущий лот
+double currentLots[]; // Массив для хранения лотов
+
+
+
+
+
+
+
+
+int ArraySearch(const string &array[], string value)
+{
+   for(int i = 0; i < ArraySize(array); i++)
+   {
+      if(array[i] == value)
+      {
+         return i; // Возвращаем индекс, если элемент найден
+      }
+   }
+   return -1; // Возвращаем -1, если элемент не найден
+}
+
+
+
+
+
+
+
+
+string currentSymbol = "";
 // Массив валютных пар
 string currencyPairs[] = {"EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD", "AUDUSD", "NZDUSD",
                           "EURGBP", "EURJPY", "EURCHF", "EURCAD", "EURAUD", "EURNZD",
@@ -66,7 +121,16 @@ string currencyPairs[] = {"EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD", "AUD
                           "CADJPY", "CADCHF",
                           "CHFJPY"};
 
-// Функция обновления размеров и позиции панели
+
+
+
+
+
+
+
+
+
+
 void UpdatePanel()
 {
    if(ObjectFind(PANEL_NAME) < 0)
@@ -96,7 +160,88 @@ void UpdatePanel()
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_YSIZE, PANEL_HEIGHT);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_XDISTANCE, x);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_YDISTANCE, y);
+
+   // Обновляем позиции кнопок OPEN ORDERS
+   int startX = SIDE_MARGIN + CONTENT_PADDING_LEFT + SPREAD_BUTTON_WIDTH + COLUMN_SPACING + BUTTON_WIDTH + COLUMN_SPACING + PROFIT_BUTTON_WIDTH + PROFIT_RIGHT_MARGIN + LOT_BUY_WIDTH + PROFIT_BUY_WIDTH + LOT_SELL_WIDTH + PROFIT_SELL_WIDTH + TRADES_COLUMN_SPACING;
+   int startY = TOP_MARGIN + CONTENT_PADDING_TOP;
+
+   ObjectSetInteger(0, HEADER_PREFIX + "OpenOrders", OBJPROP_XDISTANCE, startX);
+   ObjectSetInteger(0, HEADER_PREFIX + "OpenOrders", OBJPROP_YDISTANCE, startY + HEADER_SPACING);
+
+   for(int i = 0; i < ArraySize(currencyPairs); i++)
+   {
+      int yOffset = startY + CONTENT_PADDING_TOP + (i + 1) * (BUTTON_HEIGHT + BUTTON_SPACING);
+      string symbol = currencyPairs[i];
+
+      ObjectSetInteger(0, "SellButton_" + symbol, OBJPROP_XDISTANCE, startX);
+      ObjectSetInteger(0, "SellButton_" + symbol, OBJPROP_YDISTANCE, yOffset);
+
+      ObjectSetInteger(0, "Minus0.1_" + symbol, OBJPROP_XDISTANCE, startX + SELL_BUY_BUTTON_WIDTH + COLUMN_SPACING);
+      ObjectSetInteger(0, "Minus0.1_" + symbol, OBJPROP_YDISTANCE, yOffset);
+
+      ObjectSetInteger(0, "Minus0.01_" + symbol, OBJPROP_XDISTANCE, startX + SELL_BUY_BUTTON_WIDTH + COLUMN_SPACING + LOT_BUTTON_WIDTH);
+      ObjectSetInteger(0, "Minus0.01_" + symbol, OBJPROP_YDISTANCE, yOffset);
+
+      ObjectSetInteger(0, "LotDisplay_" + symbol, OBJPROP_XDISTANCE, startX + SELL_BUY_BUTTON_WIDTH + 2 * COLUMN_SPACING + 2 * LOT_BUTTON_WIDTH);
+      ObjectSetInteger(0, "LotDisplay_" + symbol, OBJPROP_YDISTANCE, yOffset);
+
+      ObjectSetInteger(0, "Plus0.01_" + symbol, OBJPROP_XDISTANCE, startX + SELL_BUY_BUTTON_WIDTH + 3 * COLUMN_SPACING + 2 * LOT_BUTTON_WIDTH + LOT_DISPLAY_WIDTH);
+      ObjectSetInteger(0, "Plus0.01_" + symbol, OBJPROP_YDISTANCE, yOffset);
+
+      ObjectSetInteger(0, "Plus0.1_" + symbol, OBJPROP_XDISTANCE, startX + SELL_BUY_BUTTON_WIDTH + 3 * COLUMN_SPACING + 3 * LOT_BUTTON_WIDTH + LOT_DISPLAY_WIDTH);
+      ObjectSetInteger(0, "Plus0.1_" + symbol, OBJPROP_YDISTANCE, yOffset);
+
+      ObjectSetInteger(0, "BuyButton_" + symbol, OBJPROP_XDISTANCE, startX + SELL_BUY_BUTTON_WIDTH + 4 * COLUMN_SPACING + 4 * LOT_BUTTON_WIDTH + LOT_DISPLAY_WIDTH);
+      ObjectSetInteger(0, "BuyButton_" + symbol, OBJPROP_YDISTANCE, yOffset);
+   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Функция создания кнопки
 void CreateButton(string name, int x, int y, int width, int height, string text, color bgColor, color textColor, color borderColor, int borderWidth, bool clickable = true)
@@ -114,7 +259,7 @@ void CreateButton(string name, int x, int y, int width, int height, string text,
       ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
       ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
       ObjectSetInteger(0, name, OBJPROP_CORNER, 0);
-      ObjectSetInteger(0, name, OBJPROP_BACK, true);
+      ObjectSetInteger(0, name, OBJPROP_BACK, false); // Устанавливаем кнопку на передний план
       ObjectSetInteger(0, name, OBJPROP_HIDDEN, false);
       ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_RAISED);
       ObjectSetInteger(0, name, OBJPROP_COLOR, textColor);
@@ -124,30 +269,46 @@ void CreateButton(string name, int x, int y, int width, int height, string text,
       ObjectSetString(0, name, OBJPROP_FONT, GLOBAL_FONT);
       ObjectSetInteger(0, name, OBJPROP_FONTSIZE, GLOBAL_FONT_SIZE);
       ObjectSetInteger(0, name, OBJPROP_SELECTABLE, clickable);
+      ObjectSetInteger(0, name, OBJPROP_ZORDER, 1000); // Высокий ZORDER для кнопки
    }
 }
 
-// Функция создания кнопок и полей для спредов и профита
+
+
+
+
+
+
+
+
+
+
 void CreateCurrencyButtons()
 {
    int startY = TOP_MARGIN + CONTENT_PADDING_TOP; // Отступ для заголовков
    int spreadX = SIDE_MARGIN + CONTENT_PADDING_LEFT; // Спреды слева
    int buttonX = spreadX + SPREAD_BUTTON_WIDTH + COLUMN_SPACING; // Валютные пары справа
    int profitX = buttonX + BUTTON_WIDTH + COLUMN_SPACING; // Профит справа от валютных пар
-   int lotBuyX = profitX + PROFIT_BUY_WIDTH + COLUMN_SPACING; // Lot Buy
-   int profitBuyX = lotBuyX + LOT_BUY_WIDTH + COLUMN_SPACING; // Profit Buy
-   int lotSellX = profitBuyX + PROFIT_BUY_WIDTH + COLUMN_SPACING; // Lot Sell
-   int profitSellX = lotSellX + LOT_SELL_WIDTH + COLUMN_SPACING; // Profit Sell
+   int lotBuyX = profitX + PROFIT_BUTTON_WIDTH + PROFIT_RIGHT_MARGIN; // Lot Buy
+   int lotSellX = lotBuyX + LOT_BUY_WIDTH + PROFIT_BUY_WIDTH + 2 * COLUMN_SPACING; // Lot Sell
+   int openOrdersX = lotSellX + LOT_SELL_WIDTH + PROFIT_SELL_WIDTH + TRADES_COLUMN_SPACING; // OPEN ORDERS
 
    // Заголовки столбцов
    CreateButton(HEADER_PREFIX + "Spread", spreadX, startY + HEADER_SPACING, SPREAD_BUTTON_WIDTH, SPREAD_BUTTON_HEIGHT, "Spread", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
    CreateButton(HEADER_PREFIX + "Trades", buttonX, startY + HEADER_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "Trades", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
-   CreateButton(HEADER_PREFIX + "Profit", profitX, startY + HEADER_SPACING, SPREAD_BUTTON_WIDTH, SPREAD_BUTTON_HEIGHT, "Profit", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
-   CreateButton(HEADER_PREFIX + "LotBuy", lotBuyX, startY + HEADER_SPACING, LOT_BUY_WIDTH, BUTTON_HEIGHT, "Lot Buy", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
-   CreateButton(HEADER_PREFIX + "ProfitBuy", profitBuyX, startY + HEADER_SPACING, PROFIT_BUY_WIDTH, BUTTON_HEIGHT, "Profit Buy", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
-   CreateButton(HEADER_PREFIX + "LotSell", lotSellX, startY + HEADER_SPACING, LOT_SELL_WIDTH, BUTTON_HEIGHT, "Lot Sell", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
-   CreateButton(HEADER_PREFIX + "ProfitSell", profitSellX, startY + HEADER_SPACING, PROFIT_SELL_WIDTH, BUTTON_HEIGHT, "Profit Sell", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
+   CreateButton(HEADER_PREFIX + "Profit", profitX, startY + HEADER_SPACING, PROFIT_BUTTON_WIDTH, SPREAD_BUTTON_HEIGHT, "Profit", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
 
+   // Новые объединенные заголовки
+   int buyHeaderWidth = LOT_BUY_WIDTH + PROFIT_BUY_WIDTH + COLUMN_SPACING; // Ширина заголовка BUY
+   int sellHeaderWidth = LOT_SELL_WIDTH + PROFIT_SELL_WIDTH + COLUMN_SPACING; // Ширина заголовка SELL
+
+   CreateButton(HEADER_PREFIX + "BUY", lotBuyX, startY + HEADER_SPACING, buyHeaderWidth, BUTTON_HEIGHT, "BUY", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
+   CreateButton(HEADER_PREFIX + "SELL", lotSellX, startY + HEADER_SPACING, sellHeaderWidth, BUTTON_HEIGHT, "SELL", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
+
+   // Заголовок OPEN ORDERS
+   CreateButton(HEADER_PREFIX + "OpenOrders", openOrdersX, startY + HEADER_SPACING, TRADES_COLUMN_WIDTH, BUTTON_HEIGHT, "OPEN ORDERS", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
+
+   // Создание кнопок для валютных пар
    for(int i = 0; i < ArraySize(currencyPairs); i++)
    {
       string buttonName = BUTTON_PREFIX + currencyPairs[i];
@@ -166,29 +327,72 @@ void CreateCurrencyButtons()
       CreateButton(buttonName, buttonX, yOffset, BUTTON_WIDTH, BUTTON_HEIGHT, currencyPairs[i], BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH);
       
       // Создание кнопки для профита
-      //CreateButton(profitName, profitX, yOffset, SPREAD_BUTTON_WIDTH, SPREAD_BUTTON_HEIGHT, "0.00", SPREAD_BUTTON_BG_COLOR, clrLavender, SPREAD_BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-      // Создание кнопок для Lot Buy и Profit Buy
-      //CreateButton(lotBuyName, lotBuyX, yOffset, LOT_BUY_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-      //CreateButton(profitBuyName, profitBuyX, yOffset, PROFIT_BUY_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, clrLavender, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
+      CreateButton(profitName, profitX, yOffset, PROFIT_BUTTON_WIDTH, SPREAD_BUTTON_HEIGHT, "0.00", SPREAD_BUTTON_BG_COLOR, clrLavender, SPREAD_BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
 
-      // Создание кнопок для Lot Sell и Profit Sell
-      //CreateButton(lotSellName, lotSellX, yOffset, LOT_SELL_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-      //CreateButton(profitSellName, profitSellX, yOffset, PROFIT_SELL_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, clrLavender, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-      
-      // Создание кнопки для профита
-CreateButton(profitName, profitX, yOffset, SPREAD_BUTTON_WIDTH, SPREAD_BUTTON_HEIGHT, "0.00", SPREAD_BUTTON_BG_COLOR, clrLavender, SPREAD_BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
+      // Кнопки для Lot Buy и Profit Buy
+      CreateButton(lotBuyName, lotBuyX, yOffset, LOT_BUY_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
+      CreateButton(profitBuyName, lotBuyX + LOT_BUY_WIDTH + COLUMN_SPACING, yOffset, PROFIT_BUY_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, clrLavender, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
 
-// Создание кнопок для Lot Buy и Profit Buy
-CreateButton(lotBuyName, lotBuyX, yOffset, LOT_BUY_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-CreateButton(profitBuyName, profitBuyX, yOffset, PROFIT_BUY_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, clrLavender, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-
-// Создание кнопок для Lot Sell и Profit Sell
-CreateButton(lotSellName, lotSellX, yOffset, LOT_SELL_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-CreateButton(profitSellName, profitSellX, yOffset, PROFIT_SELL_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, clrLavender, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
-      
-      
+      // Кнопки для Lot Sell и Profit Sell
+      CreateButton(lotSellName, lotSellX, yOffset, LOT_SELL_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
+      CreateButton(profitSellName, lotSellX + LOT_SELL_WIDTH + COLUMN_SPACING, yOffset, PROFIT_SELL_WIDTH, BUTTON_HEIGHT, "0.00", BUTTON_BG_COLOR, clrLavender, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
    }
+
+   // Поле "Total Profit" под кнопками валют
+   int totalProfitY = startY + CONTENT_PADDING_TOP + (ArraySize(currencyPairs) + 1) * (BUTTON_HEIGHT + BUTTON_SPACING);
+   int totalProfitWidth = SPREAD_BUTTON_WIDTH + COLUMN_SPACING + BUTTON_WIDTH; // Ширина кнопки (Спред + Валюты)
+   CreateButton("TotalProfitLabel", spreadX, totalProfitY, totalProfitWidth, BUTTON_HEIGHT, "TOTAL PROFIT", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
+
+   // Кнопка с общей прибылью под кнопками профитов
+   CreateButton("TotalProfitValue", profitX, totalProfitY, PROFIT_BUTTON_WIDTH, BUTTON_HEIGHT, "0.00", SPREAD_BUTTON_BG_COLOR, clrLavender, SPREAD_BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Функция обновления спредов
 void UpdateSpreads()
@@ -208,7 +412,17 @@ void UpdateSpreads()
    }
 }
 
-// Функция обновления профита
+
+
+
+
+
+
+
+
+
+
+
 // Функция обновления профита
 void UpdateProfits()
 {
@@ -241,6 +455,42 @@ double CalculateProfitForSymbol(string symbol)
    }
    return totalProfit;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+double CalculateTotalProfit()
+{
+   double totalProfit = 0;
+   for(int i = 0; i < OrdersTotal(); i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS))
+      {
+         totalProfit += OrderProfit() + OrderSwap() + OrderCommission();
+      }
+   }
+   return totalProfit;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -314,37 +564,206 @@ void UpdateSellColumns()
 
 
 
+
+
+
+
+
+
+void CreateTradeControls()
+{
+   int startX = SIDE_MARGIN + CONTENT_PADDING_LEFT + SPREAD_BUTTON_WIDTH + COLUMN_SPACING + BUTTON_WIDTH + COLUMN_SPACING + PROFIT_BUTTON_WIDTH + PROFIT_RIGHT_MARGIN + LOT_BUY_WIDTH + PROFIT_BUY_WIDTH + LOT_SELL_WIDTH + PROFIT_SELL_WIDTH + TRADES_COLUMN_SPACING;
+   int startY = TOP_MARGIN + CONTENT_PADDING_TOP;
+
+   // Удаляем старый заголовок OPEN ORDERS, если он существует
+   ObjectDelete(HEADER_PREFIX + "OpenOrders");
+
+   // Заголовок OPEN ORDERS
+   CreateButton(HEADER_PREFIX + "OpenOrders", startX, startY + HEADER_SPACING, TRADES_COLUMN_WIDTH, BUTTON_HEIGHT, "OPEN ORDERS", C'0,0,0', clrLavender, clrBlack, BUTTON_BORDER_WIDTH, false);
+
+   for(int i = 0; i < ArraySize(currencyPairs); i++)
+   {
+      int yOffset = startY + CONTENT_PADDING_TOP + (i + 1) * (BUTTON_HEIGHT + BUTTON_SPACING);
+      string symbol = currencyPairs[i];
+
+      // Удаляем старые объекты, если они существуют
+      ObjectDelete("SellButton_" + symbol);
+      ObjectDelete("Minus0.1_" + symbol);
+      ObjectDelete("Minus0.01_" + symbol);
+      ObjectDelete("LotDisplay_" + symbol);
+      ObjectDelete("Plus0.01_" + symbol);
+      ObjectDelete("Plus0.1_" + symbol);
+      ObjectDelete("BuyButton_" + symbol);
+
+      // Кнопка Sell
+      CreateButton("SellButton_" + symbol, startX, yOffset, SELL_BUY_BUTTON_WIDTH, SELL_BUY_BUTTON_HEIGHT, "Sell", SELL_BUTTON_BG_COLOR, SELL_BUTTON_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH);
+
+      // Кнопки для изменения лота
+      CreateButton("Minus0.1_" + symbol, startX + SELL_BUY_BUTTON_WIDTH + COLUMN_SPACING, yOffset, LOT_BUTTON_WIDTH, BUTTON_HEIGHT, "-0.1", LOT_BUTTON_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH);
+      CreateButton("Minus0.01_" + symbol, startX + SELL_BUY_BUTTON_WIDTH + COLUMN_SPACING + LOT_BUTTON_WIDTH, yOffset, LOT_BUTTON_WIDTH, BUTTON_HEIGHT, "-0.01", LOT_BUTTON_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH);
+
+      // Поле для отображения лота
+      CreateButton("LotDisplay_" + symbol, startX + SELL_BUY_BUTTON_WIDTH + 2 * COLUMN_SPACING + 2 * LOT_BUTTON_WIDTH, yOffset, LOT_DISPLAY_WIDTH, BUTTON_HEIGHT, DoubleToString(currentLots[i], 2), BUTTON_BG_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH, false);
+
+      // Кнопки для увеличения лота
+      CreateButton("Plus0.01_" + symbol, startX + SELL_BUY_BUTTON_WIDTH + 3 * COLUMN_SPACING + 2 * LOT_BUTTON_WIDTH + LOT_DISPLAY_WIDTH, yOffset, LOT_BUTTON_WIDTH, BUTTON_HEIGHT, "+0.01", LOT_BUTTON_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH);
+      CreateButton("Plus0.1_" + symbol, startX + SELL_BUY_BUTTON_WIDTH + 3 * COLUMN_SPACING + 3 * LOT_BUTTON_WIDTH + LOT_DISPLAY_WIDTH, yOffset, LOT_BUTTON_WIDTH, BUTTON_HEIGHT, "+0.1", LOT_BUTTON_COLOR, BUTTON_TEXT_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH);
+
+      // Кнопка Buy
+      CreateButton("BuyButton_" + symbol, startX + SELL_BUY_BUTTON_WIDTH + 4 * COLUMN_SPACING + 4 * LOT_BUTTON_WIDTH + LOT_DISPLAY_WIDTH, yOffset, SELL_BUY_BUTTON_WIDTH, SELL_BUY_BUTTON_HEIGHT, "Buy", BUY_BUTTON_BG_COLOR, BUY_BUTTON_COLOR, BUTTON_BORDER_COLOR, BUTTON_BORDER_WIDTH);
+   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void UpdateButtonColors()
+{
+   for(int i = 0; i < ArraySize(currencyPairs); i++)
+   {
+      string buttonName = BUTTON_PREFIX + currencyPairs[i];
+      color textColor = (currencyPairs[i] == currentSymbol) ? clrLime : BUTTON_TEXT_COLOR; // Подсветка текста активной валютной пары
+      ObjectSetInteger(0, buttonName, OBJPROP_COLOR, textColor);
+   }
+}
+
+
+
+
+
+
+
+// установка ордеров
+
+void UpdateLot(string symbol, double delta)
+{
+   int index = ArraySearch(currencyPairs, symbol); // Используем нашу функцию
+   if(index >= 0)
+   {
+      currentLots[index] += delta;
+      if(currentLots[index] > MAX_LOT) currentLots[index] = MAX_LOT;
+      if(currentLots[index] < MIN_LOT) currentLots[index] = MIN_LOT;
+      ObjectSetString(0, "LotDisplay_" + symbol, OBJPROP_TEXT, DoubleToString(currentLots[index], 2));
+   }
+}
+
+
+
+
+
+
+
+void OpenOrder(string symbol, int type) // type: OP_BUY или OP_SELL
+{
+   int index = ArraySearch(currencyPairs, symbol); // Используем нашу функцию
+   if(index >= 0)
+   {
+      double lot = currentLots[index];
+      int ticket = OrderSend(symbol, type, lot, MarketInfo(symbol, (type == OP_BUY) ? MODE_ASK : MODE_BID), 3, 0, 0, "Order by Panel", 0, 0, (type == OP_BUY) ? clrGreen : clrRed);
+      if(ticket < 0)
+      {
+         Print("Ошибка открытия ордера: ", GetLastError());
+      }
+   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Функция создания фона
 void CreatePanel()
 {
-   // Проверяем, существует ли уже объект
    if(ObjectFind(PANEL_NAME) >= 0)
       return;
    
-   // Создаем прямоугольник
    if(!ObjectCreate(0, PANEL_NAME, OBJ_RECTANGLE_LABEL, 0, 0, 0))
    {
       Print("Ошибка создания объекта панели");
       return;
    }
    
-   // Устанавливаем параметры панели
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_XSIZE, PANEL_WIDTH);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_YSIZE, PANEL_HEIGHT);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_COLOR, PANEL_BORDER_COLOR);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_WIDTH, PANEL_BORDER_WIDTH);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_CORNER, 0);
-   ObjectSetInteger(0, PANEL_NAME, OBJPROP_BACK, true);
+   ObjectSetInteger(0, PANEL_NAME, OBJPROP_BACK, false); // Устанавливаем панель на передний план
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_HIDDEN, false);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_STYLE, STYLE_SOLID);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_SELECTABLE, false);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_SELECTED, false);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_BGCOLOR, PANEL_BG_COLOR);
+   ObjectSetInteger(0, PANEL_NAME, OBJPROP_ZORDER, 1000); // Высокий ZORDER для панели
    
    UpdatePanel();
    CreateCurrencyButtons();
 }
-
 
 
 
@@ -359,51 +778,175 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       if(StringFind(sparam, BUTTON_PREFIX) == 0)
       {
          string symbol = StringSubstr(sparam, StringLen(BUTTON_PREFIX));
-         ChartOpen(symbol, PERIOD_CURRENT);
-         ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+         ChartSetSymbolPeriod(0, symbol, PERIOD_CURRENT); // Открываем график в текущем окне
+         currentSymbol = symbol; // Обновляем текущий символ
+         UpdateButtonColors(); // Обновляем цвета кнопок
+         ObjectSetInteger(0, sparam, OBJPROP_STATE, false); // Сбрасываем состояние кнопки
       }
+      
+      
+      
+      for(int i = 0; i < ArraySize(currencyPairs); i++)
+      {
+         string symbol = currencyPairs[i];
+         if(sparam == "SellButton_" + symbol)
+         {
+            OpenOrder(symbol, OP_SELL);
+         }
+         else if(sparam == "BuyButton_" + symbol)
+         {
+            OpenOrder(symbol, OP_BUY);
+         }
+         else if(sparam == "Minus0.1_" + symbol)
+         {
+            UpdateLot(symbol, -0.1);
+         }
+         else if(sparam == "Minus0.01_" + symbol)
+         {
+            UpdateLot(symbol, -0.01);
+         }
+         else if(sparam == "Plus0.01_" + symbol)
+         {
+            UpdateLot(symbol, 0.01);
+         }
+         else if(sparam == "Plus0.1_" + symbol)
+         {
+            UpdateLot(symbol, 0.1);
+         }
+      }
+            
+      
    }
    else if(id == CHARTEVENT_CHART_CHANGE)
    {
+      currentSymbol = Symbol(); // Обновляем текущий символ
+      UpdateButtonColors(); // Обновляем цвета кнопок
       UpdatePanel();
    }
+   
+   
 }
+
+
+
+
+
+
+
+
+
+
 
 // Инициализация скрипта
 int OnInit()
 {
+   ArrayResize(currentLots, ArraySize(currencyPairs));
+   ArrayInitialize(currentLots, 0.01); // Устанавливаем начальный лот 0.1 для всех пар
+
    CreatePanel();
+   currentSymbol = Symbol();     // Устанавливаем текущий символ
+   CreateCurrencyButtons();      // Создаем заголовки и кнопки
+   UpdateButtonColors();         // Обновляем цвета кнопок
+   CreateTradeControls();        // Добавляем создание кнопок для управления лотом
    return INIT_SUCCEEDED;
 }
 
-// Деинициализация
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void OnDeinit(const int reason)
 {
    ObjectDelete(PANEL_NAME);
    for(int i = 0; i < ArraySize(currencyPairs); i++)
    {
-      ObjectDelete(BUTTON_PREFIX + currencyPairs[i]);
-      ObjectDelete(SPREAD_PREFIX + currencyPairs[i]);
-      ObjectDelete(PROFIT_PREFIX + currencyPairs[i]);
-      ObjectDelete(LOT_BUY_PREFIX + currencyPairs[i]);
-      ObjectDelete(PROFIT_BUY_PREFIX + currencyPairs[i]);
-      ObjectDelete(LOT_SELL_PREFIX + currencyPairs[i]);
-      ObjectDelete(PROFIT_SELL_PREFIX + currencyPairs[i]);
+      string symbol = currencyPairs[i];
+      ObjectDelete(BUTTON_PREFIX + symbol);
+      ObjectDelete(SPREAD_PREFIX + symbol);
+      ObjectDelete(PROFIT_PREFIX + symbol);
+      ObjectDelete(LOT_BUY_PREFIX + symbol);
+      ObjectDelete(PROFIT_BUY_PREFIX + symbol);
+      ObjectDelete(LOT_SELL_PREFIX + symbol);
+      ObjectDelete(PROFIT_SELL_PREFIX + symbol);
+      ObjectDelete("SellButton_" + symbol);
+      ObjectDelete("Minus0.1_" + symbol);
+      ObjectDelete("Minus0.01_" + symbol);
+      ObjectDelete("LotDisplay_" + symbol);
+      ObjectDelete("Plus0.01_" + symbol);
+      ObjectDelete("Plus0.1_" + symbol);
+      ObjectDelete("BuyButton_" + symbol);
    }
    ObjectDelete(HEADER_PREFIX + "Spread");
    ObjectDelete(HEADER_PREFIX + "Trades");
    ObjectDelete(HEADER_PREFIX + "Profit");
-   ObjectDelete(HEADER_PREFIX + "LotBuy");
-   ObjectDelete(HEADER_PREFIX + "ProfitBuy");
-   ObjectDelete(HEADER_PREFIX + "LotSell");
-   ObjectDelete(HEADER_PREFIX + "ProfitSell");
+   ObjectDelete(HEADER_PREFIX + "BUY");
+   ObjectDelete(HEADER_PREFIX + "SELL");
+   ObjectDelete(HEADER_PREFIX + "OpenOrders"); // Удаляем заголовок OPEN ORDERS
 }
 
-// Обновление спредов, профита и новых столбцов на каждом тике
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 void OnTick()
 {
    UpdateSpreads();
    UpdateProfits();
    UpdateBuyColumns();
    UpdateSellColumns();
+
+   // Обновляем общую прибыль
+   double totalProfit = CalculateTotalProfit();
+   ObjectSetString(0, "TotalProfitValue", OBJPROP_TEXT, DoubleToString(totalProfit, 2));
+
+   // Изменение цвета текста в зависимости от прибыли
+   if(totalProfit == 0) // Если прибыль равна нулю
+      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrLavender);
+   else if(totalProfit > 0) // Если прибыль положительная
+      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrLime);
+   else // Если прибыль отрицательная
+      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrRed);
+}
+*/
+
+void OnTick()
+{
+   UpdateSpreads();
+   UpdateProfits();
+   UpdateBuyColumns();
+   UpdateSellColumns();
+
+   // Обновляем общую прибыль
+   double totalProfit = CalculateTotalProfit();
+   ObjectSetString(0, "TotalProfitValue", OBJPROP_TEXT, DoubleToString(totalProfit, 2));
+
+   // Изменение цвета текста в зависимости от прибыли
+   if(totalProfit == 0) // Если прибыль равна нулю
+      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrLavender);
+   else if(totalProfit > 0) // Если прибыль положительная
+      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrLime);
+   else // Если прибыль отрицательная
+      ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrRed);
 }
