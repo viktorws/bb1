@@ -12,8 +12,12 @@
 #define PROFIT_SELL_PREFIX "ProfitSell_"
 
 // Параметры панели
-input int PANEL_WIDTH = 1050; // Ширина панели (увеличена для новых столбцов)
-input int PANEL_HEIGHT = 1100; // Высота панели
+
+input double StopLossCurrency = 50.0;  // Стоп-лосс в валюте депозита
+input double TakeProfitCurrency = 50.0; // Тейк-профит в валюте депозита
+
+input int PANEL_WIDTH = 1020; // Ширина панели (увеличена для новых столбцов)
+input int PANEL_HEIGHT = 980; // Высота панели
 input int BOTTOM_MARGIN = 30; // Отступ снизу в пикселях
 input int TOP_MARGIN = 20; // Отступ сверху в пикселях
 input int SIDE_MARGIN = 10; // Отступ от края в пикселях
@@ -73,7 +77,7 @@ input int PROFIT_SELL_WIDTH = 80; // Ширина столбца Profit Sell
 input int PROFIT_RIGHT_MARGIN = 20; // Отступ справа от столбца Profit
 
 // Параметры отступов внутри блока
-input int CONTENT_PADDING_LEFT = 10; // Отступ слева
+input int CONTENT_PADDING_LEFT = 20; // Отступ слева
 input int CONTENT_PADDING_RIGHT = 10; // Отступ справа
 input int CONTENT_PADDING_TOP = 10; // Отступ сверху
 input int CONTENT_PADDING_BOTTOM = 10; // Отступ снизу
@@ -81,6 +85,15 @@ input int CONTENT_PADDING_BOTTOM = 10; // Отступ снизу
 // Глобальные параметры шрифта
 input string GLOBAL_FONT = "Arial"; // Шрифт для всей панели
 input int GLOBAL_FONT_SIZE = 8; // Размер шрифта для всей панели
+
+
+// Глобальные переменные для хранения размеров графика
+int prevChartWidth = 0;
+int prevChartHeight = 0;
+int leftOffset = 50; // Отступ слева в пикселях (можно менять)
+
+
+
 
 double currentLot = 0.01; // Текущий лот
 double currentLots[]; // Массив для хранения лотов
@@ -201,48 +214,6 @@ void UpdatePanel()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Функция создания кнопки
 void CreateButton(string name, int x, int y, int width, int height, string text, color bgColor, color textColor, color borderColor, int borderWidth, bool clickable = true)
 {
@@ -272,14 +243,6 @@ void CreateButton(string name, int x, int y, int width, int height, string text,
       ObjectSetInteger(0, name, OBJPROP_ZORDER, 1000); // Высокий ZORDER для кнопки
    }
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -351,45 +314,6 @@ void CreateCurrencyButtons()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Функция обновления спредов
 void UpdateSpreads()
 {
@@ -407,15 +331,6 @@ void UpdateSpreads()
       }
    }
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -454,15 +369,6 @@ double CalculateProfitForSymbol(string symbol)
 
 
 
-
-
-
-
-
-
-
-
-
 double CalculateTotalProfit()
 {
    double totalProfit = 0;
@@ -475,16 +381,6 @@ double CalculateTotalProfit()
    }
    return totalProfit;
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -558,13 +454,6 @@ void UpdateSellColumns()
 
 
 
-
-
-
-
-
-
-
 void CreateTradeControls()
 {
    int startX = SIDE_MARGIN + CONTENT_PADDING_LEFT + SPREAD_BUTTON_WIDTH + COLUMN_SPACING + BUTTON_WIDTH + COLUMN_SPACING + PROFIT_BUTTON_WIDTH + PROFIT_RIGHT_MARGIN + LOT_BUY_WIDTH + PROFIT_BUY_WIDTH + LOT_SELL_WIDTH + PROFIT_SELL_WIDTH + TRADES_COLUMN_SPACING;
@@ -611,30 +500,6 @@ void CreateTradeControls()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void UpdateButtonColors()
 {
    for(int i = 0; i < ArraySize(currencyPairs); i++)
@@ -652,7 +517,6 @@ void UpdateButtonColors()
 
 
 // установка ордеров
-
 void UpdateLot(string symbol, double delta)
 {
    int index = ArraySearch(currencyPairs, symbol); // Используем нашу функцию
@@ -667,10 +531,6 @@ void UpdateLot(string symbol, double delta)
 
 
 
-
-
-
-
 void OpenOrder(string symbol, int type) // type: OP_BUY или OP_SELL
 {
    int index = ArraySearch(currencyPairs, symbol); // Используем нашу функцию
@@ -678,12 +538,545 @@ void OpenOrder(string symbol, int type) // type: OP_BUY или OP_SELL
    {
       double lot = currentLots[index];
       int ticket = OrderSend(symbol, type, lot, MarketInfo(symbol, (type == OP_BUY) ? MODE_ASK : MODE_BID), 3, 0, 0, "Order by Panel", 0, 0, (type == OP_BUY) ? clrGreen : clrRed);
-      if(ticket < 0)
+      
+      if (ticket < 0) {  Print("Ошибка открытия ордера: ", GetLastError()); }
+      if (ticket > 0) {  CreateLabelOrders();  }  // Если ордер успешно открыт, создаем метку
+   
+   }
+}
+
+
+
+// пересчет пунктов в валюту для SL / TP
+double CalculatePipsFromCurrency(double valueInCurrency, string symbol)
+{
+   double tickValue = MarketInfo(symbol, MODE_TICKVALUE); // Стоимость одного пункта в валюте депозита
+   double tickSize = MarketInfo(symbol, MODE_TICKSIZE);   // Размер одного пункта
+   double pointValue = MarketInfo(symbol, MODE_POINT);    // Значение одного пункта
+
+   if (tickValue > 0 && tickSize > 0 && pointValue > 0)
+   {
+      return valueInCurrency / (tickValue / tickSize * pointValue);
+   }
+   return 0; // Если данные недоступны
+}
+
+
+
+
+void SetStopLoss(int ticket, double slCurrency)
+{
+   if (OrderSelect(ticket, SELECT_BY_TICKET))
+   {
+      string symbol = OrderSymbol();
+      double slPips = CalculatePipsFromCurrency(slCurrency, symbol);
+
+      if (slPips > 0)
       {
-         Print("Ошибка открытия ордера: ", GetLastError());
+         double slPrice = 0;
+         if (OrderType() == OP_BUY)
+         {
+            slPrice = OrderOpenPrice() - slPips * Point;
+         }
+         else if (OrderType() == OP_SELL)
+         {
+            slPrice = OrderOpenPrice() + slPips * Point;
+         }
+         ticket = OrderModify(ticket, OrderOpenPrice(), slPrice, OrderTakeProfit(), 0, clrNONE);
       }
    }
 }
+
+void SetTakeProfit(int ticket, double tpCurrency)
+{
+   if (OrderSelect(ticket, SELECT_BY_TICKET))
+   {
+      string symbol = OrderSymbol();
+      double tpPips = CalculatePipsFromCurrency(tpCurrency, symbol);
+
+      if (tpPips > 0)
+      {
+         double tpPrice = 0;
+         if (OrderType() == OP_BUY)
+         {
+            tpPrice = OrderOpenPrice() + tpPips * Point;
+         }
+         else if (OrderType() == OP_SELL)
+         {
+            tpPrice = OrderOpenPrice() - tpPips * Point;
+         }
+         ticket = OrderModify(ticket, OrderOpenPrice(), OrderStopLoss(), tpPrice, 0, clrNONE);
+      }
+   }
+}
+
+
+// Функция для переворота ордера
+void ReverseOrder(int ticket)
+{
+   
+   if (OrderSelect(ticket, SELECT_BY_TICKET))
+   {
+      double lotSize = OrderLots();
+      double openPrice = OrderOpenPrice();
+      int orderType = OrderType();
+      string symbol = OrderSymbol();
+
+      // Закрываем текущий ордер
+      if (OrderClose(ticket, lotSize, OrderClosePrice(), 3, clrRed))
+      {
+         // Открываем противоположный ордер
+         int newOrderType = (orderType == OP_BUY) ? OP_SELL : OP_BUY;
+         double newPrice = (newOrderType == OP_BUY) ? Ask : Bid;
+         ticket = OrderSend(symbol, newOrderType, lotSize, newPrice, 3, 0, 0, "Reversed Order", 0, 0, clrBlue);
+      }
+   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void CreateLabelOrders()
+{
+   // Удаляем старые объекты
+   DeleteObjects(-1, "", true);
+
+   //string currentSymbol = Symbol();
+   int totalOrders = OrdersTotal();
+
+   for (int i = 0; i < totalOrders; i++)
+   {
+      if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         if (OrderSymbol() != currentSymbol) continue;
+
+         int ticket = OrderTicket();
+         string bgName = "OrderBG_" + IntegerToString(ticket);
+         string textName = "OrderText_" + IntegerToString(ticket);
+         string profitName = "OrderProfit_" + IntegerToString(ticket);
+         string buttonName = "OrderCloseBtn_" + IntegerToString(ticket);
+         string stopLossButtonName = "OrderStopLossBtn_" + IntegerToString(ticket);
+         string takeProfitButtonName = "OrderTakeProfitBtn_" + IntegerToString(ticket);
+         string reverseButtonName = "OrderReverseBtn_" + IntegerToString(ticket);
+         double openPrice = OrderOpenPrice();
+
+         bool isBuy = OrderType() == OP_BUY;
+         color bgColor = C'20,20,20'; // Цвет фона
+
+         // Рассчитываем прибыль
+         double profit = OrderProfit() + OrderSwap() + OrderCommission();
+         string profitText = "Profit: " + DoubleToString(profit, 2);
+         color profitColor = (profit >= 0) ? clrLime : clrRed; // Зеленый для положительной прибыли, красный для отрицательной
+
+         // Формируем текст для основной метки
+         string orderText = (isBuy ? "BUY" : "SELL") + " Lot: " + DoubleToString(OrderLots(), 2);
+
+         // Переводим цену в координаты экрана
+         int x, y;
+         ChartTimePriceToXY(0, 0, TimeCurrent(), openPrice, x, y);
+
+         // === ФОН ===
+         if (ObjectCreate(0, bgName, OBJ_RECTANGLE_LABEL, 0, 0, 0))
+         {
+            ObjectSetInteger(0, bgName, OBJPROP_COLOR, C'40,40,40'); // цвет границы фона
+            ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, bgColor); // цвет фона
+            ObjectSetInteger(0, bgName, OBJPROP_CORNER, 0);
+            ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 200); // Фиксированная ширина фона
+            ObjectSetInteger(0, bgName, OBJPROP_YSIZE, 25);
+            ObjectSetInteger(0, bgName, OBJPROP_HIDDEN, false);
+            ObjectSetInteger(0, bgName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+            ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, x + 20);
+            ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, y - 15);
+         }
+
+         // === ОСНОВНОЙ ТЕКСТ ===
+         if (ObjectCreate(0, textName, OBJ_LABEL, 0, 0, 0))
+         {
+            ObjectSetInteger(0, textName, OBJPROP_COLOR, clrWhite); // Белый цвет для основного текста
+            ObjectSetInteger(0, textName, OBJPROP_FONTSIZE, 10);
+            ObjectSetString(0, textName, OBJPROP_TEXT, orderText);
+            ObjectSetInteger(0, textName, OBJPROP_HIDDEN, false);
+            ObjectSetInteger(0, textName, OBJPROP_XDISTANCE, x + 35);
+            ObjectSetInteger(0, textName, OBJPROP_YDISTANCE, y - 10);
+         }
+
+         // === ТЕКСТ ПРИБЫЛИ ===
+         if (ObjectCreate(0, profitName, OBJ_LABEL, 0, 0, 0))
+         {
+            ObjectSetInteger(0, profitName, OBJPROP_COLOR, profitColor); // Цвет текста прибыли
+            ObjectSetInteger(0, profitName, OBJPROP_FONTSIZE, 10);
+            ObjectSetString(0, profitName, OBJPROP_TEXT, profitText);
+            ObjectSetInteger(0, profitName, OBJPROP_HIDDEN, false);
+            ObjectSetInteger(0, profitName, OBJPROP_XDISTANCE, x + 135); // Сдвигаем текст прибыли вправо
+            ObjectSetInteger(0, profitName, OBJPROP_YDISTANCE, y - 10);
+         }
+
+         // === КНОПКА "X" ===
+         if (ObjectCreate(0, buttonName, OBJ_BUTTON, 0, 0, 0))
+         {
+            ObjectSetInteger(0, buttonName, OBJPROP_COLOR, clrLavender);
+            ObjectSetInteger(0, buttonName, OBJPROP_BGCOLOR, clrRed);
+            ObjectSetInteger(0, buttonName, OBJPROP_XSIZE, 23);
+            ObjectSetInteger(0, buttonName, OBJPROP_YSIZE, 23);
+            ObjectSetInteger(0, buttonName, OBJPROP_HIDDEN, false);
+            ObjectSetInteger(0, buttonName, OBJPROP_BORDER_TYPE, BORDER_RAISED);
+            ObjectSetString(0, buttonName, OBJPROP_TEXT, "X");
+            ObjectSetInteger(0, buttonName, OBJPROP_XDISTANCE, x + 225); // Сдвигаем кнопку вправо
+            ObjectSetInteger(0, buttonName, OBJPROP_YDISTANCE, y - 14);
+         }
+
+         // === КНОПКА "StopLoss" ===
+         if (ObjectCreate(0, stopLossButtonName, OBJ_BUTTON, 0, 0, 0))
+         {
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_COLOR, clrWhite);
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_BGCOLOR, clrBlue);
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_XSIZE, 50);
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_YSIZE, 23);
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_HIDDEN, false);
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_BORDER_TYPE, BORDER_RAISED);
+            ObjectSetString(0, stopLossButtonName, OBJPROP_TEXT, "SL: " + DoubleToString(StopLossCurrency, 2));
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_XDISTANCE, x + 335); // Сдвигаем кнопку вправо
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_YDISTANCE, y - 14);
+         }
+
+         // === КНОПКА "TakeProfit" ===
+         if (ObjectCreate(0, takeProfitButtonName, OBJ_BUTTON, 0, 0, 0))
+         {
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_COLOR, clrWhite);
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_BGCOLOR, clrGreen);
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_XSIZE, 50);
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_YSIZE, 23);
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_HIDDEN, false);
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_BORDER_TYPE, BORDER_RAISED);
+            ObjectSetString(0, takeProfitButtonName, OBJPROP_TEXT, "TP: " + DoubleToString(TakeProfitCurrency, 2));
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_XDISTANCE, x + 395); // Сдвигаем кнопку вправо
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_YDISTANCE, y - 14);
+         }
+
+         // === КНОПКА "Reverse" ===
+         if (ObjectCreate(0, reverseButtonName, OBJ_BUTTON, 0, 0, 0))
+         {
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_COLOR, clrWhite);
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_BGCOLOR, clrOrange);
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_XSIZE, 50);
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_YSIZE, 23);
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_HIDDEN, false);
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_BORDER_TYPE, BORDER_RAISED);
+            ObjectSetString(0, reverseButtonName, OBJPROP_TEXT, "Rev");
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_XDISTANCE, x + 455); // Сдвигаем кнопку вправо
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_YDISTANCE, y - 14);
+         }
+      }
+   }
+}
+
+
+
+
+void DeleteObjects(int ticket = -1, string activeOrders = "", bool deleteArrows = false)
+{
+   int totalObjects = ObjectsTotal();
+   for (int i = totalObjects - 1; i >= 0; i--)
+   {
+      string objName = ObjectName(i);
+
+      // Проверяем, что объект относится к ордерам, кнопкам или стрелкам
+      bool isOrderObject = (StringFind(objName, "OrderBG_") == 0 ||
+                            StringFind(objName, "OrderText_") == 0 ||
+                            StringFind(objName, "OrderProfit_") == 0 ||
+                            StringFind(objName, "OrderCloseBtn_") == 0 ||
+                            StringFind(objName, "OrderStopLossBtn_") == 0 ||
+                            StringFind(objName, "OrderTakeProfitBtn_") == 0 ||
+                            StringFind(objName, "OrderReverseBtn_") == 0);
+
+      bool isArrow = (deleteArrows && ObjectGetInteger(0, objName, OBJPROP_TYPE) == OBJ_ARROW);
+
+      if (isOrderObject || isArrow)
+      {
+         // Если передан ticket, удаляем объекты только для этого ордера
+         if (ticket != -1 && isOrderObject)
+         {
+            // Извлекаем тикет из названия объекта
+            int objTicket = (int)StringToInteger(StringSubstr(objName, StringFind(objName, "_") + 1));
+            if (objTicket == ticket)
+            {
+               ObjectDelete(0, objName);
+            }
+         }
+         // Если передан список активных ордеров, удаляем объекты для неактивных ордеров
+         else if (activeOrders != "" && isOrderObject)
+         {
+            int objTicket = (int)StringToInteger(StringSubstr(objName, StringFind(objName, "_") + 1));
+            if (StringFind(activeOrders, IntegerToString(objTicket)) == -1)
+            {
+               ObjectDelete(0, objName);
+            }
+         }
+         // Если параметры не переданы, удаляем все объекты
+         else
+         {
+            ObjectDelete(0, objName);
+         }
+      }
+   }
+}
+
+
+
+
+
+/*
+void UpdateOrderLabels()
+{
+   int totalOrders = OrdersTotal();
+   string activeOrders;
+   
+   for (int i = 0; i < totalOrders; i++)
+   {
+      if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) && OrderSymbol() == Symbol())
+      {
+         int ticket = OrderTicket();
+         activeOrders += IntegerToString(ticket) + ";";
+         string bgName = "OrderBG_" + IntegerToString(ticket);
+         string textName = "OrderText_" + IntegerToString(ticket);
+         string profitName = "OrderProfit_" + IntegerToString(ticket);
+         string buttonName = "OrderCloseBtn_" + IntegerToString(ticket);
+         string stopLossButtonName = "OrderStopLossBtn_" + IntegerToString(ticket);
+         string takeProfitButtonName = "OrderTakeProfitBtn_" + IntegerToString(ticket);
+         string reverseButtonName = "OrderReverseBtn_" + IntegerToString(ticket);
+         double openPrice = OrderOpenPrice();
+
+         // Рассчитываем прибыль
+         double profit = OrderProfit() + OrderSwap() + OrderCommission();
+         string profitText = "Profit: " + DoubleToString(profit, 2);
+         color profitColor = (profit >= 0) ? clrLime : clrRed; // Зеленый для положительной прибыли, красный для отрицательной
+
+         int x, y;
+         ChartTimePriceToXY(0, 0, TimeCurrent(), openPrice, x, y);
+
+         // Устанавливаем координаты для всех объектов
+         if (ObjectFind(bgName) >= 0) {
+            ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, x + 20);
+            ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, y - 15);
+         }
+         if (ObjectFind(textName) >= 0) {
+            ObjectSetInteger(0, textName, OBJPROP_XDISTANCE, x + 35);
+            ObjectSetInteger(0, textName, OBJPROP_YDISTANCE, y - 10);
+         }
+         if (ObjectFind(profitName) >= 0) {
+            ObjectSetString(0, profitName, OBJPROP_TEXT, profitText); // Обновляем текст прибыли
+            ObjectSetInteger(0, profitName, OBJPROP_COLOR, profitColor); // Обновляем цвет прибыли
+            ObjectSetInteger(0, profitName, OBJPROP_XDISTANCE, x + 135);
+            ObjectSetInteger(0, profitName, OBJPROP_YDISTANCE, y - 10);
+         }
+         if (ObjectFind(buttonName) >= 0) {
+            ObjectSetInteger(0, buttonName, OBJPROP_XDISTANCE, x + 225);
+            ObjectSetInteger(0, buttonName, OBJPROP_YDISTANCE, y - 14);
+         }
+         if (ObjectFind(stopLossButtonName) >= 0) {
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_XDISTANCE, x + 265);
+            ObjectSetInteger(0, stopLossButtonName, OBJPROP_YDISTANCE, y - 14);
+         }
+         if (ObjectFind(takeProfitButtonName) >= 0) {
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_XDISTANCE, x + 315);
+            ObjectSetInteger(0, takeProfitButtonName, OBJPROP_YDISTANCE, y - 14);
+         }
+         if (ObjectFind(reverseButtonName) >= 0) {
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_XDISTANCE, x + 365);
+            ObjectSetInteger(0, reverseButtonName, OBJPROP_YDISTANCE, y - 14);
+         }
+      }
+   }
+
+   // Удаляем объекты для неактивных ордеров
+   DeleteObjects(-1, activeOrders, true);
+}*/
+void UpdateOrderLabels()
+{
+   int totalOrders = OrdersTotal();
+   string activeOrders;
+   
+   for (int i = 0; i < totalOrders; i++)
+   {
+      if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES) && OrderSymbol() == Symbol())
+      {
+         int ticket = OrderTicket();
+         activeOrders += IntegerToString(ticket) + ";";
+         string bgName = "OrderBG_" + IntegerToString(ticket);
+         string textName = "OrderText_" + IntegerToString(ticket);
+         string profitName = "OrderProfit_" + IntegerToString(ticket);
+         string buttonName = "OrderCloseBtn_" + IntegerToString(ticket);
+         string stopLossButtonName = "OrderStopLossBtn_" + IntegerToString(ticket);
+         string takeProfitButtonName = "OrderTakeProfitBtn_" + IntegerToString(ticket);
+         string reverseButtonName = "OrderReverseBtn_" + IntegerToString(ticket);
+         double openPrice = OrderOpenPrice();
+
+         // Рассчитываем прибыль
+         double profit = OrderProfit() + OrderSwap() + OrderCommission();
+         string profitText = "Profit: " + DoubleToString(profit, 2);
+         color profitColor = (profit >= 0) ? clrLime : clrRed; // Зеленый для положительной прибыли, красный для отрицательной
+
+         int x, y;
+         ChartTimePriceToXY(0, 0, TimeCurrent(), openPrice, x, y);
+
+         // Создаем или обновляем объекты
+         if (ObjectFind(bgName) < 0) ObjectCreate(0, bgName, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+         if (ObjectFind(textName) < 0) ObjectCreate(0, textName, OBJ_LABEL, 0, 0, 0);
+         if (ObjectFind(profitName) < 0) ObjectCreate(0, profitName, OBJ_LABEL, 0, 0, 0);
+         if (ObjectFind(buttonName) < 0) ObjectCreate(0, buttonName, OBJ_BUTTON, 0, 0, 0);
+         if (ObjectFind(stopLossButtonName) < 0) ObjectCreate(0, stopLossButtonName, OBJ_BUTTON, 0, 0, 0);
+         if (ObjectFind(takeProfitButtonName) < 0) ObjectCreate(0, takeProfitButtonName, OBJ_BUTTON, 0, 0, 0);
+         if (ObjectFind(reverseButtonName) < 0) ObjectCreate(0, reverseButtonName, OBJ_BUTTON, 0, 0, 0);
+
+         // Устанавливаем свойства объектов
+         ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, x + 20);
+         ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, y - 15);
+         ObjectSetInteger(0, textName, OBJPROP_XDISTANCE, x + 35);
+         ObjectSetInteger(0, textName, OBJPROP_YDISTANCE, y - 10);
+         ObjectSetString(0, profitName, OBJPROP_TEXT, profitText);
+         ObjectSetInteger(0, profitName, OBJPROP_COLOR, profitColor);
+         ObjectSetInteger(0, profitName, OBJPROP_XDISTANCE, x + 135);
+         ObjectSetInteger(0, profitName, OBJPROP_YDISTANCE, y - 10);
+         ObjectSetInteger(0, buttonName, OBJPROP_XDISTANCE, x + 225);
+         ObjectSetInteger(0, buttonName, OBJPROP_YDISTANCE, y - 14);
+         ObjectSetInteger(0, stopLossButtonName, OBJPROP_XDISTANCE, x + 265);
+         ObjectSetInteger(0, stopLossButtonName, OBJPROP_YDISTANCE, y - 14);
+         ObjectSetInteger(0, takeProfitButtonName, OBJPROP_XDISTANCE, x + 315);
+         ObjectSetInteger(0, takeProfitButtonName, OBJPROP_YDISTANCE, y - 14);
+         ObjectSetInteger(0, reverseButtonName, OBJPROP_XDISTANCE, x + 365);
+         ObjectSetInteger(0, reverseButtonName, OBJPROP_YDISTANCE, y - 14);
+      }
+   }
+
+   // Удаляем объекты для неактивных ордеров
+   DeleteObjects(-1, activeOrders, true);
+   ChartRedraw();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// === Создание кастомной линии Bid ===
+void CreateBidLine()
+{
+    string lineName = "CustomBidLine";
+    double bidPrice = Bid;
+    
+    // Удаляем старую линию (если есть)
+    ObjectDelete(lineName);
+    
+    // Создаём новую
+    if (ObjectCreate(0, lineName, OBJ_TREND, 0, TimeCurrent(), bidPrice, TimeCurrent() + PeriodSeconds(), bidPrice))
+    {
+        ObjectSetInteger(0, lineName, OBJPROP_COLOR, clrRed); // Цвет линии
+        ObjectSetInteger(0, lineName, OBJPROP_WIDTH, 2); // Толщина
+        ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, true); // Линия продолжается вправо
+        ObjectSetInteger(0, lineName, OBJPROP_HIDDEN, false); // Не скрываем объект
+        ObjectSetInteger(0, lineName, OBJPROP_BACK, false); // Линия поверх графика
+    }
+}
+
+// === Обновление линии Bid ===
+void UpdateBidLine()
+{
+    string lineName = "CustomBidLine";
+    double bidPrice = Bid;
+    
+    if (ObjectFind(0, lineName) >= 0) // Если линия есть
+    {
+        ObjectSetDouble(0, lineName, OBJPROP_PRICE1, bidPrice);
+        ObjectSetDouble(0, lineName, OBJPROP_PRICE2, bidPrice);
+    }
+}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -752,7 +1145,7 @@ void CreatePanel()
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_SELECTABLE, false);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_SELECTED, false);
    ObjectSetInteger(0, PANEL_NAME, OBJPROP_BGCOLOR, PANEL_BG_COLOR);
-   ObjectSetInteger(0, PANEL_NAME, OBJPROP_ZORDER, 1000); // Высокий ZORDER для панели
+   ObjectSetInteger(0, PANEL_NAME, OBJPROP_ZORDER, 100); // Высокий ZORDER для панели
    
    UpdatePanel();
    CreateCurrencyButtons();
@@ -795,10 +1188,108 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       currentSymbol = Symbol(); // Обновляем текущий символ
       UpdateButtonColors(); // Обновляем цвета кнопок
       UpdatePanel();
+      CreateLabelOrders();
+      UpdateOrderLabels();
    }
    
    
+   
+   
+   
+   // Если нажата кнопка "X"
+   if (id == CHARTEVENT_OBJECT_CLICK && StringFind(sparam, "OrderCloseBtn_") == 0)
+   {
+      int ticket = (int)StringToInteger(StringSubstr(sparam, StringLen("OrderCloseBtn_")));
+      if (OrderClose(ticket, OrderLots(), OrderClosePrice(), 3, clrRed))
+      {
+         DeleteObjects(ticket);
+      }
+   }
+
+   // Если нажата кнопка "StopLoss"
+   if (id == CHARTEVENT_OBJECT_CLICK && StringFind(sparam, "OrderStopLossBtn_") == 0)
+   {
+      int ticket = (int)StringToInteger(StringSubstr(sparam, StringLen("OrderStopLossBtn_")));
+      SetStopLoss(ticket, StopLossCurrency);
+   }
+
+   // Если нажата кнопка "TakeProfit"
+   if (id == CHARTEVENT_OBJECT_CLICK && StringFind(sparam, "OrderTakeProfitBtn_") == 0)
+   {
+      int ticket = (int)StringToInteger(StringSubstr(sparam, StringLen("OrderTakeProfitBtn_")));
+      SetTakeProfit(ticket, TakeProfitCurrency);
+   }
+
+   // Если нажата кнопка "Reverse"
+   if (id == CHARTEVENT_OBJECT_CLICK && StringFind(sparam, "OrderReverseBtn_") == 0)
+   {
+      int ticket = (int)StringToInteger(StringSubstr(sparam, StringLen("OrderReverseBtn_")));
+      ReverseOrder(ticket);
+      DeleteObjects(ticket); // Удаляем метки для закрытого ордера
+   }
+  
+
+   
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void OnTimer()
+{
+   int chartWidth = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+   int chartHeight = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+   
+   // Если размер окна изменился, обновляем метки
+   if (chartWidth != prevChartWidth || chartHeight != prevChartHeight)
+   {
+      prevChartWidth = chartWidth;
+      prevChartHeight = chartHeight;
+      UpdateOrderLabels();
+   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -815,12 +1306,17 @@ int OnInit()
 {
    ArrayResize(currentLots, ArraySize(currencyPairs));
    ArrayInitialize(currentLots, 0.01); // Устанавливаем начальный лот 0.1 для всех пар
-
+   EventSetTimer(1); // Устанавливаем таймер на 1 секунду
+   
    CreatePanel();
    currentSymbol = Symbol();     // Устанавливаем текущий символ
    CreateCurrencyButtons();      // Создаем заголовки и кнопки
    UpdateButtonColors();         // Обновляем цвета кнопок
    CreateTradeControls();        // Добавляем создание кнопок для управления лотом
+   CreateLabelOrders();          // Метки на ордерах
+   UpdateOrderLabels();
+   
+
    return INIT_SUCCEEDED;
 }
 
@@ -871,7 +1367,43 @@ void OnDeinit(const int reason)
    
    ObjectDelete("TotalProfitLabel"); // Удаляем TotalProfitLabel
    ObjectDelete("TotalProfitValue"); // Удаляем TotalProfitValue
+   
+   
+         string labelName = "OrderLabel_" + IntegerToString(OrderTicket());
+         string buttonName = "OrderCloseBtn_" + IntegerToString(OrderTicket());
+         
+         ObjectDelete(labelName);
+         ObjectDelete(buttonName);
+
+   
+   int totalObjects = ObjectsTotal();
+   for (int i = totalObjects - 1; i >= 0; i--)
+   {
+      string objName = ObjectName(i);
+      if (StringFind(objName, "OrderBG_") == 0 || StringFind(objName, "OrderText_") == 0 || StringFind(objName, "OrderCloseBtn_") == 0)
+      {
+         ObjectDelete(objName);
+      }
+   }
+   
+   
+   
+   EventKillTimer(); // Очищаем таймер при удалении советника
+   totalObjects = ObjectsTotal();
+   for (int i = totalObjects - 1; i >= 0; i--)
+   {
+      string objName = ObjectName(i);
+      if (StringFind(objName, "OrderBG_") == 0 || StringFind(objName, "OrderText_") == 0 || StringFind(objName, "OrderCloseBtn_") == 0)
+      {
+         ObjectDelete(objName);
+      }
+   }
+   
+   
+      
 }
+
+
 
 
 
@@ -888,10 +1420,12 @@ void OnDeinit(const int reason)
 
 void OnTick()
 {
+   ChartRedraw();
    UpdateSpreads();
    UpdateProfits();
    UpdateBuyColumns();
    UpdateSellColumns();
+   UpdateOrderLabels();
 
    // Обновляем общую прибыль
    double totalProfit = CalculateTotalProfit();
@@ -904,6 +1438,13 @@ void OnTick()
       ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrLime);
    else // Если прибыль отрицательная
       ObjectSetInteger(0, "TotalProfitValue", OBJPROP_COLOR, clrRed);
+      
+   if (ObjectFind(0, "CustomBidLine") < 0) // Если линия BID не создана
+   CreateBidLine();
+   UpdateBidLine();
+      
+      
+      
 }
 
 
